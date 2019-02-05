@@ -217,7 +217,7 @@ class Geth extends EventEmitter {
   }
   async getStatus() {
     return {
-      node: 'geth',
+      client: 'geth',
       binPath: this.binPath,
       version: '1.8.20-stable',
       commit: '24d727b6d6e2c0cde222fa12155c4a6db5caaf2e',
