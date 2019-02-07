@@ -28,7 +28,7 @@ Then in a third terminal, outside the mist-ui folder and install and run mist-sh
 ```
 git clone https://github.com/ethereum/mist-shell.git
 cd mist-shell
-yarn && yarn start
+yarn && yarn start:dev
 ```
 
 ## Dev Mode
