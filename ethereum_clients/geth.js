@@ -376,7 +376,7 @@ class Geth extends EventEmitter {
 
   async restart() {
     await this.stop()
-    await this.start()
+    return this.start()
   }
 
   async checkForUpdates() {
