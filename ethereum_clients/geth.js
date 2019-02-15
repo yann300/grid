@@ -251,7 +251,7 @@ class Geth extends EventEmitter {
 
       const onStart = () => {
         this.state = STATES.STARTED
-        resolve(true)
+        resolve(this.getStatus())
       }
 
       const onData = data => {
