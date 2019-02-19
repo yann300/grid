@@ -80,7 +80,7 @@ const defaultConfig = {
   port: 8545,
   network: 'main',
   syncMode: 'light',
-  ipc: 'ipc'
+  ipc: 'IPC'
 }
 
 // https://github.com/ethereum/ethereum-client-binaries
@@ -202,8 +202,8 @@ class Geth extends EventEmitter {
     }
 
     if (ipc) {
-      switch (ipc) {
-        case 'ws':
+      switch (ipc.toLowerCase()) {
+        case 'websockets':
           flags.push('--ws', '--wsaddr', host, '--wsport', port)
           // ToDo: set --wsorigins for security
           break
