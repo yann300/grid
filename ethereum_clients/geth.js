@@ -83,7 +83,7 @@ const defaultConfig = {
   name: 'default',
   dataDir,
   host: 'localhost',
-  port: 8545,
+  port: 8546,
   network: 'main',
   syncMode: 'light',
   ipc: 'IPC'
@@ -232,16 +232,18 @@ class Geth extends EventEmitter {
     return new Promise(async (resolve, reject) => {
       if (binPackagePath) {
         this.binPath = await this.extractPackageBinaries(binPackagePath)
+      } else {
+        this.binPath = await this.getLocalBinary()
       }
       if (!this.binPath) {
-        throw new Error('No binPath')
+        throw new Error('No geth bin path')
       }
-
-      this.state = STATES.STARTING
-      console.log('Start Geth: ', this.binPath)
 
       // Set flags
       const flags = this.getGethFlags()
+
+      this.state = STATES.STARTING
+      console.log('Start Geth: ', this.binPath)
 
       // Spawn process
       const proc = spawn(this.binPath, flags)
@@ -256,13 +258,25 @@ class Geth extends EventEmitter {
       proc.on('close', code => {
         this.states = STATES.STOPPED
         const message = `Geth child process exited with code: ${code}`
-        console.log(message)
         reject(message)
+        if (code !== 0) {
+          // closing with any code other than 0 means there was an error
+          console.error(message)
+          console.log('Last 10 log lines: ', this.getLogs().slice(-10))
+        }
       })
+
+      const onConnect = () => {
+        this.state = STATES.CONNECTED
+        resolve(this.getStatus())
+      }
 
       const onStart = () => {
         this.state = STATES.STARTED
-        resolve(this.getStatus())
+        // Check for and connect IPC in 1s
+        setTimeout(() => {
+          this.connectIpc(onConnect)
+        }, 1000)
       }
 
       const onData = data => {
@@ -274,19 +288,10 @@ class Geth extends EventEmitter {
       stdout.on('data', onData)
       stderr.on('data', onData)
       this.proc = proc
-
-      // Check for IPC in 3s
-      setTimeout(() => {
-        this.getIpcPath()
-      }, 3000)
     })
   }
 
   getIpcPath() {
-    if (!this.isRunning) {
-      return null
-    }
-
     let ipcPath
     const logs = this.getLogs()
     for (const log of logs) {
@@ -294,24 +299,34 @@ class Geth extends EventEmitter {
       if (found) {
         ipcPath = log.split('=')[1].trim()
         console.log('Found IPC path: ', ipcPath)
+        return ipcPath
       }
     }
-    if (ipcPath) {
-      this.connectIpc(ipcPath)
-    } else {
-      // Recheck in 3s
-      setTimeout(() => {
-        console.log('IPC endpoint not found, rechecking in 3s...')
-        this.getIpcPath()
-      }, 3000)
-    }
+    return null
   }
 
-  connectIpc(path) {
-    this.ipc = net.connect({ path })
+  connectIpc(onConnect) {
+    if (!this.isRunning) {
+      return null
+    }
+
+    if (!this.ipcPath) {
+      this.ipcPath = this.getIpcPath()
+      if (!this.ipcPath) {
+        // Recheck in 3s
+        setTimeout(() => {
+          console.log('IPC endpoint not found, rechecking in 2s...')
+          this.connectIpc(onConnect)
+        }, 2000)
+        return
+      }
+    }
+
+    this.ipc = net.connect({ path: this.ipcPath })
 
     this.ipc.on('connect', error => {
       this.state = STATES.CONNECTED
+      onConnect()
       console.log('IPC Connected')
     })
 
@@ -384,6 +399,7 @@ class Geth extends EventEmitter {
         reject(new Error('Geth Error Stopping: ', error))
       })
       this.proc.kill('SIGINT')
+      this.ipcPath = null
     })
   }
 

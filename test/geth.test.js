@@ -1,8 +1,12 @@
 const { assert } = require('chai')
+const fs = require('fs')
 const path = require('path')
+const rimraf = require('rimraf')
 const Geth = require('../ethereum_clients/geth')
 
 const gethBin = path.join(__dirname, 'fixtures', 'geth_bin')
+const dataDir = path.join(__dirname, 'fixtures', 'data_dir')
+
 const mockedReleases = {
   darwin: [
     {
@@ -54,38 +58,46 @@ const mockedReleases = {
   ]
 }
 
-let release
-let dataDir
-
 // Platform specific initialization
+let release
 switch (process.platform) {
   case 'win32': {
     release = mockedReleases.windows[0]
-    dataDir = '%APPDATA%/Ethereum'
+    // dataDir = '%APPDATA%/Ethereum'
     break
   }
   case 'linux': {
     release = mockedReleases.linux[0]
-    dataDir = '~/.ethereum'
+    // dataDir = '~/.ethereum'
     break
   }
   case 'darwin': {
     release = mockedReleases.darwin[0]
-    dataDir = '~/Library/Ethereum'
+    // dataDir = '~/Library/Ethereum'
     break
   }
   default: {
   }
 }
 
-let releases
-let downloadedRelease
-
 describe('Clients', function() {
   describe('Geth.js', function() {
+    let geth
+    beforeEach(function() {
+      geth = new Geth()
+      const defaultConfig = geth.getConfig()
+      geth.setConfig({ ...defaultConfig, dataDir })
+    })
+    afterEach(async function() {
+      if (geth.isRunning) {
+        await geth.stop()
+      }
+      // clear dataDir
+      rimraf.sync(dataDir)
+    })
+
     describe('extractPackageBinaries()', function() {
       it('returns the correct binary path disk', async function() {
-        const geth = new Geth()
         const binaryPathDisk = await geth.extractPackageBinaries(release)
         assert.include(binaryPathDisk, release.name)
       })
@@ -93,7 +105,6 @@ describe('Clients', function() {
 
     describe('getLocalBinaries()', function() {
       it('finds all local geth binaries', async function() {
-        const geth = new Geth()
         const releases = await geth.getLocalBinaries()
         assert.typeOf(releases, 'array')
         assert.isAbove(releases.length, 0)
@@ -103,7 +114,6 @@ describe('Clients', function() {
 
     describe('getLocalBinary()', function() {
       it('returns latest cached local binary', async function() {
-        const geth = new Geth()
         const binaryPath = await geth.getLocalBinary()
         assert.include(binaryPath, release.name)
       })
@@ -111,22 +121,74 @@ describe('Clients', function() {
 
     describe('start()', function() {
       it('starts geth', async function() {
-        this.timeout(20 * 1000)
-        const geth = new Geth()
-        const releases = await geth.getLocalBinaries()
-        const result = await geth.start(releases[0])
+        this.timeout(10 * 1000)
+        const result = await geth.start()
         assert.equal(result.client, 'geth')
+        assert.equal(geth.getConfig().dataDir, dataDir)
         assert.equal(geth.isRunning, true)
-        geth.stop()
+      })
+
+      it('starts geth in ropsten', async function() {
+        this.timeout(10 * 1000)
+        const config = geth.getConfig()
+        geth.setConfig({ ...config, network: 'ropsten' })
+        await geth.start()
+        const result = await geth.rpc('net_version')
+        assert.equal(result, 3)
+      })
+
+      it('starts geth in rinkeby', async function() {
+        this.timeout(10 * 1000)
+        const config = geth.getConfig()
+        geth.setConfig({ ...config, network: 'rinkeby' })
+        await geth.start()
+        const result = await geth.rpc('net_version')
+        assert.equal(result, 4)
+      })
+
+      it('starts geth in fast sync', async function() {
+        this.timeout(10 * 1000)
+        const config = geth.getConfig()
+        geth.setConfig({ ...config, syncMode: 'fast' })
+        await geth.start()
+        assert.include(geth.getConfig().syncMode, 'fast')
+      })
+
+      it('starts geth in full sync', async function() {
+        this.timeout(10 * 1000)
+        const config = geth.getConfig()
+        geth.setConfig({ ...config, syncMode: 'full' })
+        await geth.start()
+        assert.include(geth.getConfig().syncMode, 'full')
+      })
+
+      it('starts geth with websockets', async function() {
+        this.timeout(10 * 1000)
+        const config = geth.getConfig()
+        geth.setConfig({ ...config, ipc: 'WebSockets' })
+        await geth.start()
+        assert.include(geth.getLogs().join(' '), 'WebSocket endpoint opened')
+      })
+
+      it('does not allow geth to start http rpc because it is deprecated', async function() {
+        this.timeout(10 * 1000)
+        const config = geth.getConfig()
+        geth.setConfig({ ...config, ipc: 'http' })
+        geth
+          .start()
+          .then(() => {
+            assert.equal(geth.isRunning, false)
+          })
+          .catch(error => {
+            assert.deepEqual(error, { message: 'Geth: HTTP is deprecated' })
+          })
       })
     })
 
     describe('stop()', function() {
       it('stops geth', async function() {
-        this.timeout(20 * 1000)
-        const geth = new Geth()
-        const releases = await geth.getLocalBinaries()
-        await geth.start(releases[0])
+        this.timeout(10 * 1000)
+        await geth.start()
         const result = await geth.stop(geth)
         assert.equal(result, true)
         assert.equal(geth.isRunning, false)
@@ -135,19 +197,24 @@ describe('Clients', function() {
 
     describe('restart()', function() {
       it('restarts geth', async function() {
-        const geth = new Geth()
-        const releases = await geth.getLocalBinaries()
-        await geth.start(releases[0])
+        this.timeout(10 * 1000)
+        await geth.start()
         const result = await geth.restart()
         assert.equal(result.client, 'geth')
         assert.equal(geth.isRunning, true)
-        geth.stop()
+      })
+    })
+
+    describe('rpc()', function() {
+      it('returns an rpc response', async function() {
+        await geth.start()
+        const result = await geth.rpc('net_version')
+        assert.equal(result, 1)
       })
     })
 
     describe('getStatus()', function() {
       it('returns the status', async function() {
-        const geth = new Geth()
         const status = geth.getStatus()
         assert.equal(status.client, 'geth')
       })
@@ -155,7 +222,6 @@ describe('Clients', function() {
 
     describe('getConfig', function() {
       it('returns the config', async function() {
-        const geth = new Geth()
         const config = geth.getConfig()
         assert.equal(config.network, 'main')
       })
@@ -163,9 +229,8 @@ describe('Clients', function() {
 
     describe('setConfig', function() {
       it('sets a new config', async function() {
-        const geth = new Geth()
         const config = geth.getConfig()
-        const newConfig = { ...config, network: 'ropsten' }
+        const newConfig = { ...config, network: 'rinkeby' }
         await geth.setConfig(newConfig)
         assert.equal(geth.getConfig(), newConfig)
       })
@@ -174,8 +239,7 @@ describe('Clients', function() {
     describe('getReleases()', function() {
       it('finds hosted geth releases', async function() {
         this.timeout(30 * 1000)
-        const geth = new Geth()
-        releases = await geth.getReleases()
+        const releases = await geth.getReleases()
         assert.typeOf(releases, 'array')
         assert.include(releases[0].fileName, 'geth')
       })
