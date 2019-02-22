@@ -5,7 +5,7 @@ const { spawn } = require('child_process')
 const { EventEmitter } = require('events')
 const net = require('net')
 
-// Init CONSTANTS
+// Init constants
 let EXT_LENGTH = 0
 let BINARY_NAME = ''
 const STATES = {
@@ -18,7 +18,13 @@ const STATES = {
 }
 
 // Set up cache
-const GETH_CACHE = path.join(__dirname, 'geth_bin')
+let GETH_CACHE
+if (process.env.NODE_ENV === 'test') {
+  GETH_CACHE = path.join(__dirname, '/../test', 'fixtures', 'geth_bin')
+} else {
+  GETH_CACHE = path.join(__dirname, 'geth_bin')
+}
+
 if (!fs.existsSync(GETH_CACHE)) {
   fs.mkdirSync(GETH_CACHE)
 }
@@ -32,7 +38,7 @@ let rpcId = 1
 // Platform specific initialization
 switch (process.platform) {
   case 'win32': {
-    urlFilter = 'win'
+    urlFilter = 'windows'
     EXT_LENGTH = '.zip'.length
     BINARY_NAME = 'geth.exe'
     dataDir = '%APPDATA%/Ethereum'
@@ -155,14 +161,19 @@ class Geth extends EventEmitter {
     return await gethUpdater.getReleases()
   }
 
-  async download(release, onProgress) {
+  async download(release, onProgress = () => {}) {
     if (!release) {
       release = await gethUpdater.getLatestRemote()
     }
-    const _onProgress = (r, p) => onProgress(p)
+    const _onProgress = (release, progress) => onProgress(progress)
     gethUpdater.on('update-progress', _onProgress)
-    await gethUpdater.download(release)
-    gethUpdater.removeListener(_onProgress)
+    try {
+      return await gethUpdater.download(release)
+    } catch (error) {
+      return error
+    } finally {
+      gethUpdater.removeListener(_onProgress)
+    }
   }
 
   getUpdaterMenu() {
@@ -257,7 +268,6 @@ class Geth extends EventEmitter {
       const onData = data => {
         const log = data.toString()
         this.logs.push(log)
-        console.log(log)
       }
 
       stderr.once('data', onStart)
@@ -273,7 +283,10 @@ class Geth extends EventEmitter {
   }
 
   getIpcPath() {
-    console.log('Checking for IPC path...')
+    if (!this.isRunning) {
+      return null
+    }
+
     let ipcPath
     const logs = this.getLogs()
     for (const log of logs) {
@@ -359,12 +372,12 @@ class Geth extends EventEmitter {
   stop() {
     return new Promise((resolve, reject) => {
       if (!this.proc || !this.isRunning) {
-        resolve()
+        resolve(true)
       }
       this.state = STATES.STOPPING
       this.proc.on('exit', () => {
         this.state = STATES.STOPPED
-        resolve()
+        resolve(true)
       })
       this.proc.on('error', error => {
         this.state = STATES.ERROR
@@ -388,11 +401,11 @@ class Geth extends EventEmitter {
     this.config = newConfig
   }
 
-  async getConfig() {
+  getConfig() {
     return this.config
   }
 
-  async getStatus() {
+  getStatus() {
     return {
       client: 'geth',
       binPath: this.binPath,
