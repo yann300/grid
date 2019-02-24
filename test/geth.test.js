@@ -180,7 +180,7 @@ describe('Clients', function() {
             assert.equal(geth.isRunning, false)
           })
           .catch(error => {
-            assert.deepEqual(error, { message: 'Geth: HTTP is deprecated' })
+            assert.include(error.toString(), 'Geth: HTTP is deprecated')
           })
       })
     })

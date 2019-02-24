@@ -4,6 +4,7 @@ const { AppManager } = require('@philipplgh/electron-app-manager')
 const { spawn } = require('child_process')
 const { EventEmitter } = require('events')
 const net = require('net')
+const debug = require('debug')('geth-js')
 
 // Init constants
 let EXT_LENGTH = 0
@@ -89,10 +90,6 @@ const defaultConfig = {
   ipc: 'IPC'
 }
 
-// https://github.com/ethereum/ethereum-client-binaries
-// https://github.com/ethereumjs/geth.js/blob/master/index.js
-// https://github.com/ethereum/ethereum-client-binaries/blob/master/src/index.js
-// https://github.com/ethereum/mist/blob/develop/modules/ethereumNode.js
 class Geth extends EventEmitter {
   constructor() {
     super()
@@ -220,6 +217,7 @@ class Geth extends EventEmitter {
           break
         case 'http':
           throw new Error('Geth: HTTP is deprecated')
+          break
         default:
           break
       }
@@ -240,10 +238,16 @@ class Geth extends EventEmitter {
       }
 
       // Set flags
-      const flags = this.getGethFlags()
+      let flags
+      try {
+        flags = this.getGethFlags()
+      } catch (error) {
+        reject(error)
+        return
+      }
 
       this.state = STATES.STARTING
-      console.log('Start Geth: ', this.binPath)
+      debug('Start Geth: ', this.binPath)
 
       // Spawn process
       const proc = spawn(this.binPath, flags)
@@ -251,7 +255,7 @@ class Geth extends EventEmitter {
 
       proc.on('error', error => {
         this.states = STATES.ERROR
-        console.log('Geth Error in Process: ', error)
+        debug('Geth Error in Process: ', error)
         reject(error)
       })
 
@@ -261,8 +265,8 @@ class Geth extends EventEmitter {
         reject(message)
         if (code !== 0) {
           // closing with any code other than 0 means there was an error
-          console.error(message)
-          console.log('Last 10 log lines: ', this.getLogs().slice(-10))
+          debug('Error: ', message)
+          log('DEBUG Last 10 log lines: ', this.getLogs().slice(-10))
         }
       })
 
@@ -291,33 +295,19 @@ class Geth extends EventEmitter {
     })
   }
 
-  getIpcPath() {
-    let ipcPath
-    const logs = this.getLogs()
-    for (const log of logs) {
-      const found = log.includes('IPC endpoint opened')
-      if (found) {
-        ipcPath = log.split('=')[1].trim()
-        console.log('Found IPC path: ', ipcPath)
-        return ipcPath
-      }
-    }
-    return null
-  }
-
   connectIpc(onConnect) {
     if (!this.isRunning) {
       return null
     }
 
     if (!this.ipcPath) {
-      this.ipcPath = this.getIpcPath()
+      this.ipcPath = this.findIpcPathInLogs()
       if (!this.ipcPath) {
         // Recheck in 3s
         setTimeout(() => {
-          console.log('IPC endpoint not found, rechecking in 2s...')
+          debug('IPC endpoint not found, rechecking in 3s...')
           this.connectIpc(onConnect)
-        }, 2000)
+        }, 3000)
         return
       }
     }
@@ -327,37 +317,51 @@ class Geth extends EventEmitter {
     this.ipc.on('connect', error => {
       this.state = STATES.CONNECTED
       onConnect()
-      console.log('IPC Connected')
+      debug('IPC Connected')
     })
 
     this.ipc.on('end', function() {
       this.state = STATES.STOPPED
       this.ipc = null
-      console.log('IPC Connection Ended')
+      debug('IPC Connection Ended')
     })
 
     this.ipc.on('error', error => {
       this.state = STATES.ERROR
       this.ipc = null
-      console.error('IPC Connection Error: ', error)
+      debug('IPC Connection Error: ', error)
     })
 
     this.ipc.on('timeout', function() {
       this.state = STATES.ERROR
       this.ipc = null
-      console.error('IPC Connection Timeout')
+      debug('IPC Connection Timeout')
     })
 
     this.ipc.on('data', this.onIpcData.bind(this))
   }
 
+  findIpcPathInLogs() {
+    let ipcPath
+    const logs = this.getLogs()
+    for (const thisLog of logs) {
+      const found = thisLog.includes('IPC endpoint opened')
+      if (found) {
+        ipcPath = thisLog.split('=')[1].trim()
+        debug('Found IPC path: ', ipcPath)
+        return ipcPath
+      }
+    }
+    return null
+  }
+
   onIpcData(data) {
-    console.log('IPC data: ', data.toString())
+    debug('IPC data: ', data.toString())
     let result
     try {
       result = JSON.parse(data)
     } catch (error) {
-      console.error('Error parsing JSON: ', error)
+      debug('Error parsing JSON: ', error)
     }
     if (result) {
       if (this.responsePromises[result.id]) {
