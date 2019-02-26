@@ -83,17 +83,38 @@ switch (process.platform) {
 describe('Clients', function() {
   describe('Geth.js', function() {
     let geth
+
     beforeEach(function() {
       geth = new Geth()
       const defaultConfig = geth.getConfig()
       geth.setConfig({ ...defaultConfig, dataDir })
     })
+
     afterEach(async function() {
       if (geth.isRunning) {
         await geth.stop()
       }
       // clear dataDir
       rimraf.sync(dataDir)
+    })
+
+    after(function() {
+      // delete executables
+      const isExecutable = fileName => {
+        // determine is executable if no file extension
+        // (last part of filename is 8 character release hash)
+        const parts = fileName.split('-')
+        return parts[parts.length - 1].length == 8
+      }
+      fs.readdir(gethBin, (error, files) => {
+        files.forEach(fileName => {
+          if (isExecutable(fileName)) {
+            // delete file
+            const filePath = path.join(gethBin, fileName)
+            fs.unlinkSync(filePath)
+          }
+        })
+      })
     })
 
     describe('extractPackageBinaries()', function() {
@@ -238,7 +259,7 @@ describe('Clients', function() {
 
     describe('getReleases()', function() {
       it('finds hosted geth releases', async function() {
-        this.timeout(30 * 1000)
+        this.timeout(60 * 1000)
         const releases = await geth.getReleases()
         assert.typeOf(releases, 'array')
         assert.include(releases[0].fileName, 'geth')
