@@ -266,7 +266,7 @@ class Geth extends EventEmitter {
         if (code !== 0) {
           // closing with any code other than 0 means there was an error
           debug('Error: ', message)
-          log('DEBUG Last 10 log lines: ', this.getLogs().slice(-10))
+          debug('DEBUG Last 10 log lines: ', this.getLogs().slice(-10))
         }
       })
 
