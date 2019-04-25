@@ -69,7 +69,8 @@ module.exports = {
       network: 'main',
       syncMode: 'light',
       ipc: 'ipc',
-      cache: '2048'
+      cache: '2048',
+      profile: 'none'
     },
     flags: {
       '--datadir': 'path',
@@ -95,6 +96,19 @@ module.exports = {
         { value: 'ipc', label: 'IPC', flag: '' },
         { value: 'websockets', label: 'WebSockets', flag: '--ws' },
         { value: 'rpc', label: 'RPC HTTP', flag: '--rpc' }
+      ]
+    },
+    profile: {
+      default: 'none',
+      label: 'Profile',
+      options: [
+        { value: 'none', label: 'None', flag: '' },
+        {
+          value: 'metamask',
+          label: 'MetaMask',
+          flag:
+            '--rpc --rpccorsdomain moz-extension://e582a415-cf54-468e-9b4b-f32b576f7bf7,chrome-extension://nkbihfbeogaeaoehlefnkodbefgpgknn'
+        }
       ]
     },
     network: {
