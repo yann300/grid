@@ -87,8 +87,7 @@ module.exports = {
       options: [
         { value: 'main', label: 'Main', flag: '' },
         { value: 'ropsten', label: 'Ropsten (testnet)', flag: '--testnet' },
-        { value: 'rinkeby', label: 'Rinkeby (testnet)', flag: '--rinkeby' },
-        { value: 'goerli', label: 'Görli (testnet)', flag: '--goerli' }
+        { value: 'rinkeby', label: 'Rinkeby (testnet)', flag: '--rinkeby' }
       ]
     },
     {
