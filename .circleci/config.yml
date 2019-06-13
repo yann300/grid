@@ -58,11 +58,11 @@ aliases:
     run: 
       name: "Building app (deploy if on master)"
       command: | 
-      if [[ "${CIRCLE_BRANCH}" == 'master' ]]; then
-        yarn release --$GRID_ENV;
-      else
-        yarn build --$GRID_ENV;
-      fi;
+        if [[ "${CIRCLE_BRANCH}" == 'master' ]]; then
+          yarn release --$GRID_ENV;
+        else
+          yarn build --$GRID_ENV;
+        fi;
 
 
   - &run_steps
