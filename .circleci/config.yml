@@ -56,7 +56,7 @@ aliases:
 
   - &run_script
     run: | 
-      if [[ $CIRCLE_BRANCH == 'master' ]]; then
+      if [[ "${CIRCLE_BRANCH}" == 'master' ]]; then
         yarn release --$GRID_ENV;
       else
         yarn build --$GRID_ENV;
