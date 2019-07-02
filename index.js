@@ -34,7 +34,7 @@ const CONFIG_NAME = '.shell.config.js'
 app.disableHardwareAcceleration()
 
 const shellManager = new AppManager({
-  repository: 'https://github.com/ethereum/grid',
+  repository: 'https://github.com/yann300/grid',
   auto: true,
   electron: true
 })
@@ -178,7 +178,7 @@ const startUI = async () => {
   }
 
   // else is production:
-  const appUrl = 'package://github.com/ethereum/grid-ui'
+  const appUrl = 'package://github.com/ethereum/remix-ide'
   mainWindow = createRenderer(appUrl)
   return
   /*
