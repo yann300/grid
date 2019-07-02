@@ -11,7 +11,8 @@ const { registerGlobalPluginHost } = require('./ethereum_clients/PluginHost')
 const { registerGlobalAppManager } = require('./grid_apps/AppManager')
 const { registerGlobalUserConfig } = require('./Config')
 
-const is = require('./utils/main/util')
+const is = require('./utils/main/is')
+const { checkConnection } = require('./utils/main/util')
 
 registerGlobalUserConfig()
 
@@ -36,7 +37,7 @@ const CONFIG_NAME = '.shell.config.js'
 app.disableHardwareAcceleration()
 
 const shellManager = new AppManager({
-  repository: 'https://github.com/ethereum/grid',
+  repository: 'https://github.com/yann300/grid',
   auto: true,
   electron: true
 })
@@ -154,7 +155,8 @@ const startUI = async () => {
   }
 
   // else is production:
-  const appUrl = 'package://github.com/ethereum/grid-ui'
+  // const appUrl = 'package://github.com/ethereum/remix-ide'
+  const appUrl = 'https://remix-alpha.ethereum.org'
   mainWindow = createRenderer(appUrl)
   return
   /*

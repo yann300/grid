@@ -5,7 +5,7 @@ const { getShippedGridUiPath } = require('../utils/main/util')
 const { AppManager } = require('@philipplgh/electron-app-manager')
 
 const updater = new AppManager({
-  repository: 'https://github.com/ethereum/grid-ui',
+  repository: 'https://github.com/ethereum/remix-ide',
   auto: false
 })
 
