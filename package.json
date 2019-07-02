@@ -1,12 +1,12 @@
 {
-  "name": "grid",
+  "name": "remix-desktop",
   "version": "1.4.0",
-  "description": "Ethereum Grid",
+  "description": "Remix desktop",
   "main": "index.js",
-  "homepage": "https://github.com/ethereum/grid",
+  "homepage": "https://github.com/yann300/grid",
   "author": "Grid team <mist@ethereum.org>",
   "license": "ISC",
-  "repository": "https://github.com/ethereum/grid",
+  "repository": "https://github.com/yann300/grid",
   "scripts": {
     "start:prod": "cross-env NODE_ENV=production electron .",
     "start:dev": "cross-env NODE_ENV=development electron .",
@@ -52,8 +52,8 @@
     ]
   },
   "build": {
-    "productName": "Grid",
-    "appId": "org.ethereum.grid",
+    "productName": "Remix",
+    "appId": "org.ethereum.remix",
     "asar": false,
     "files": [
       "index.js",
